@@ -1,0 +1,27 @@
+# Core data science libraries
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10
+statsmodels>=0.14
+
+# Graph operations
+networkx>=3.0
+
+# Machine learning
+scikit-learn>=1.3.0
+
+# Embeddings for semantic similarity
+sentence-transformers>=2.2.0
+
+# Configuration
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# LLM client
+ollama>=0.1.0
+
+# Data preparation (SciSciNet download and build); the WVS catalog builder
+# also needs the pdftotext binary (poppler-utils)
+duckdb>=0.9
+huggingface_hub>=0.20
+

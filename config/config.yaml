@@ -1,0 +1,187 @@
+# AutoKD Configuration
+
+# Discovery Goals
+# Set your domain-specific discovery goals here
+# Examples:
+#   - Social networks: "block cascades and follower churn"
+#   - E-commerce: "purchase patterns and customer retention"
+#   - Healthcare: "treatment outcomes and patient factors"
+goals:
+  primary: "Understand factors affecting review ratings and helpfulness"  # Change this to your domain-specific goal
+  secondary:
+    - "user community transitions"
+    - "network structure effects"
+
+# Agent Configuration
+agents:
+  generator:
+    # Dedicated model for hypothesis generation (overrides llm.model).
+    # Set to null/empty to use the default llm.model.
+    model: "qwen2.5:14b"
+    batch_size: 10
+    temperature: 0.75
+    max_context_insights: 5  # Show fewer existing facts (prevents anchoring)
+  
+  evaluator:
+    min_p_value: 0.05
+    min_effect_size: 0.1
+    # Hard effect floor e_min: effects below this magnitude cap validity at 0.5,
+    # regardless of p-value or sample size.
+    min_meaningful_effect_size: 0.03
+    require_replication: true
+
+  critic:
+    min_insight_score: 0.55  # Insight threshold tau_s
+    novelty_weight: 0.5  # Weight for novelty score (structural + semantic + LLM)
+    validity_weight: 0.4  # Weight for validity score (from Evaluator)
+    interpretability_weight: 0.1  # Weight for interpretability score
+    # Mirror of the evaluator floor: smaller effects are refined, never accepted.
+    min_meaningful_effect_size: 0.03
+    domain_description: "Amazon Electronics Reviews (E-commerce)"  # Domain description for epistemic surprise evaluation
+  
+  coder_runner:
+    max_retries: 3  # Maximum number of retry attempts when code execution fails
+    retry_on_failure: true  # Whether to attempt LLM-based code fixing on failures
+
+# Discovery Memory
+memory:
+  storage_type: "json"
+  storage_path: "./data/memory/insight_graph.json"
+  max_context_insights: 10  # Max insights to retrieve for context
+  embedding_model: "all-MiniLM-L6-v2"  # Sentence transformer model for semantic similarity
+  duplicate_threshold: 0.92  # Similarity threshold for duplicate detection (0-1, higher = more strict)
+
+# Ablations (all default OFF — leave false for normal runs)
+ablation:
+  # A1 (no graph structure): insights are stored with no relations.
+  # Historian.get_context fills the same budget (memory.max_context_insights)
+  # by flat cosine similarity instead of typed DEEPENS/NARROWS/EXTENDS
+  # traversal; Orchestrator anchor selection uses node metadata only, and mode
+  # weights skip the cluster/chain adjustment.  Everything else is unchanged.
+  no_graph_structure: false
+
+  # A3 (global exploration only): every round runs global_exploration with no
+  # anchors; the insight graph is still built and read by retrieval.
+  global_mode_only: false
+
+  # A0 (no persistence): no memory across rounds.  Round context, anchors,
+  # the cross-round dedup filters (CROSS_ROUND_DUPLICATE, PRE-EXISTING,
+  # SELF-DUPLICATE, STRUCTURAL_DUPLICATE) and Historian.inject_insight's own
+  # duplicate check are disabled, so a rediscovered finding is stored as a
+  # separate node and counted.  Tautology and DSL/column validation, the
+  # Evaluator, and the Critic's scoring and accept gate are unchanged.  With no
+  # context to compare against, Critic novelty scores run high.
+  no_persistence: false
+
+# Orchestrator
+orchestrator:
+  max_rounds: 2000
+  # Stop early if this many consecutive rounds produce no new accepted insights.
+  early_stop_stall_rounds: 30
+  exploration_weight: 0.3
+  # Global exploration differs from normal exploration: it uses NO anchors and asks the generator
+  # to explore gaps beyond the insight-graph summary (still constrained to dataset schema).
+  global_exploration_weight: 0.15
+  global_exploration_min_insights: 12
+  refinement_weight: 0.4
+  conflict_resolution_weight: 0.3
+  # Not read: conflicts are estimand-matched (agents/orchestrator.py:_detect_conflicts).
+  conflict_similarity_threshold: 0.7
+  conflict_opposite_threshold: 0.3
+
+# Data
+data:
+  data_path: "./data/social_network.csv"  # Path to your dataset (CSV format)
+  time_window_days: 7  # Default time window for temporal analysis (in days)
+  # Optional: column names that indicate survey/sampling weight. If any exist in the schema,
+  # the coder prompt will ask the model to use it in regressions/group comparisons (e.g. WVS).
+  weight_columns: ["sampling_weight", "W_WEIGHT", "PWGHT"]
+  # Control-only columns: may appear in "controlling for" but never as the main
+  # predictor/outcome (X, Y).  Fieldwork dates and survey year are confounders,
+  # not substantive variables.
+  control_only_columns: ["FW_START", "FW_END", "A_YEAR"]
+
+# Wide-dataset variable catalog (e.g., WVS codebook RAG)
+# When enabled: two-phase flow — (1) general idea from concept menu, (2) RAG + refiner → variable-level hypotheses
+variable_catalog:
+  enabled: false
+  # Variable-card JSONL used for retrieval in the two-phase flow
+  catalog_path: "./data/processed/wvs/wvs7_variable_catalog.jsonl"
+  # Prefer deterministic generalized variable abstractions over raw label/question/options in prompts.
+  use_generalized_glossary: true
+  # Keep short raw label/question fallback when abstraction is weak or ambiguous.
+  include_raw_question_fallback: true
+  # Avoid dumping long raw option lists into glossary lines by default.
+  include_raw_options_in_glossary: false
+  # Retrieval/index text should also stay compact unless explicitly debugging.
+  include_raw_options_in_index_text: false
+  # Per-round schema/prompt: max columns to inject (0 or unset = no cap)
+  max_schema_columns: 0
+  # Only add this many variables from RAG (on top of always_keep).
+  # Wider retrieval gives the generator more variables to choose from,
+  # reducing concentration on a few popular variables.
+  max_retrieved_variables: 0
+  # Max variable cards in glossary. Cap to avoid huge prompts.
+  max_prompt_variable_cards: 0
+  # Theme cooldown: when a primary theme has been used >= threshold times in
+  # the last window rounds, it is injected as "avoid" in Phase 1 so the LLM
+  # is forced to explore other themes.
+  theme_cooldown_window: 6
+  theme_cooldown_threshold: 3
+  # Every N rounds, force the least-explored theme as PRIMARY_THEME.
+  # Set to 0 to disable.  With 14 themes and forced_explore_every=3,
+  # the system cycles through all themes within ~42 rounds.
+  forced_explore_every: 3
+  # Variable cooldown: variables accounting for > this fraction of total usage
+  # across accepted insights are flagged as "over-used" and deprioritized in
+  # the Phase 2 refiner prompt (still allowed as controls).
+  variable_cooldown_max_pct: 0.15
+  # Concept menu for Phase 1 (general idea). Canonical WVS7 codebook ToC blocks; Q-ranges used for RAG filter/boost.
+  concept_menu:
+    - "Social values, norms, stereotypes (Q1–Q45)"
+    - "Happiness and wellbeing (Q46–Q56)"
+    - "Social capital, trust, and organizational membership (Q57–Q105)"
+    - "Economic values (Q106–Q111)"
+    - "Perceptions of corruption (Q112–Q120)"
+    - "Perceptions of migration (Q121–Q130)"
+    - "Perceptions of security (Q131–Q151)"
+    - "Postmaterialism / value change (Q152–Q157)"
+    - "Science and technology perceptions (Q158–Q163)"
+    - "Religious values (Q164–Q175)"
+    - "Ethical values (Q176–Q198)"
+    - "Political interest and participation (Q199–Q234)"
+    - "Political culture and political regimes (Q235–Q259)"
+    - "Demographics and SES (Q260–Q290)"
+  # Always keep these columns if they exist (IDs / weights / country / year)
+  always_keep:
+    - "survey_id"
+    - "country"
+    - "country_code"
+    - "year"
+    - "B_COUNTRY_ALPHA"
+    - "B_COUNTRY"
+    - "A_YEAR"
+    - "FW_START"
+    - "FW_END"
+    - "sampling_weight"
+    - "W_WEIGHT"
+    - "PWGHT"
+
+# LLM Configuration
+llm:
+  provider: "ollama"  # Options: ollama, placeholder
+  model: "qwen2.5:14b"  # Main model for hypothesis generation
+  base_url: "http://localhost:11434"  # Ollama server URL
+  timeout: 300  # Request timeout in seconds
+  code_model: "qwen2.5:14b"  # DSL mode doesn't use code model; avoid loading unused model
+
+# Run artifacts (audit/debug "middle outputs")
+artifacts:
+  enabled: true
+  base_dir: "./data/runs"
+  # Optional: fixed run_id. If not set, one is auto-generated per run.
+  # run_id: "20260218_123000_abcd1234"
+  save_llm_prompts: true
+  save_llm_responses: true
+  save_generated_code: true
+  save_data_fingerprint: true

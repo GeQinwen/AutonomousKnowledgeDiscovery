@@ -1,0 +1,503 @@
+# Dataset profile: SciSciNet v2 (Science of Science)
+# Paper-level scientometrics dataset with citation impact, disruption,
+# atypicality, team composition, author metrics, and real-world impact.
+
+name: "sciscinet"
+domain_description: >-
+  Science of Science (Scientometrics / Research on Research).
+  Paper-level dataset with citation metrics, novelty indices,
+  team composition, author career indicators, and real-world impact
+  measures derived from the SciSciNet v2 corpus.
+
+# --- Flow control ---
+use_two_phase: true
+use_dsl: true
+catalog_path: "./data/processed/sciscinet/sciscinet_variable_catalog.jsonl"
+
+# --- Goals ---
+goals:
+  primary: "Discover factors that drive scientific impact, disruption, and innovation in computer science research"
+  secondary:
+    - "team composition and collaboration effects"
+    - "novelty and atypicality patterns"
+    - "gender disparities in science"
+    - "temporal trends in scientific innovation"
+
+# --- Data ---
+data_path: "./data/sciscinet_cs_autokd.csv"
+memory_path: "./data/memory_sciscinet_cs/insight_graph.json"
+
+weight_columns: []
+
+control_only_columns:
+  - "paperid"
+
+id_columns:
+  - "paperid"
+
+text_columns: []
+
+known_categorical:
+  - "doctype"
+  - "primary_field_name"
+  - "primary_country"
+
+grouping_excluded:
+  - "primary_country"
+
+nlp_features: []
+
+# --- Derived / tautological column pairs ---
+# Pairs of columns where one is mechanically derived from the other.
+# Hypotheses testing these pairs are rejected as tautological.
+derived_pairs:
+  # Raw count ↔ log transform
+  - [citation_count, log_citation_count]
+  - [cited_by_count, log_cited_by_count]
+  - [C3, log_C3]
+  - [C5, log_C5]
+  - [C10, log_C10]
+  # Nested citation windows (C3 ⊂ C5 ⊂ C10 ⊂ citation_count)
+  - [C3, C5]
+  - [C3, C10]
+  - [C5, C10]
+  - [C3, citation_count]
+  - [C5, citation_count]
+  - [C10, citation_count]
+  - [log_C3, log_C5]
+  - [log_C3, log_C10]
+  - [log_C5, log_C10]
+  - [log_C3, log_citation_count]
+  - [log_C5, log_citation_count]
+  - [log_C10, log_citation_count]
+  # Redundant team-size measures
+  - [team_size, team_size_derived]
+  - [team_size, num_authors]
+  - [team_size_derived, num_authors]
+  - [team_size_derived, is_solo_author]
+  - [num_authors, is_solo_author]
+  # Redundant institution measures
+  - [institution_count, num_institutions]
+  # Count ↔ binary flag (one derived from the other)
+  - [patent_count, has_patent]
+  - [newsfeed_count, has_news]
+  - [nct_count, has_clinical_trial]
+  - [nih_count, has_nih_funding]
+  - [nsf_count, has_nsf_funding]
+  # Nested hit-paper flags (1% ⊂ 5% ⊂ 10%)
+  - [is_hit_1pct, is_hit_5pct]
+  - [is_hit_1pct, is_hit_10pct]
+  - [is_hit_5pct, is_hit_10pct]
+  # Citation-outcome equivalence: these all measure "citation impact" and
+  # testing the same predictor against multiple of them is redundant.
+  - [normalized_citation, citation_velocity]
+  - [normalized_citation, is_hit_1pct]
+  - [normalized_citation, is_hit_5pct]
+  - [normalized_citation, is_hit_10pct]
+  - [citation_velocity, is_hit_1pct]
+  - [citation_velocity, is_hit_5pct]
+  - [citation_velocity, is_hit_10pct]
+  # cited_by_count ↔ citation_count (nearly identical in SciSciNet)
+  - [citation_count, cited_by_count]
+  - [log_citation_count, log_cited_by_count]
+  # Hit flags ↔ ALL log citation variants (hit status is derived from citation counts)
+  - [is_hit_1pct, log_cited_by_count]
+  - [is_hit_5pct, log_cited_by_count]
+  - [is_hit_10pct, log_cited_by_count]
+  - [is_hit_1pct, log_citation_count]
+  - [is_hit_5pct, log_citation_count]
+  - [is_hit_10pct, log_citation_count]
+  - [is_hit_1pct, log_C3]
+  - [is_hit_1pct, log_C5]
+  - [is_hit_1pct, log_C10]
+  - [is_hit_5pct, log_C3]
+  - [is_hit_5pct, log_C5]
+  - [is_hit_5pct, log_C10]
+  - [is_hit_10pct, log_C3]
+  - [is_hit_10pct, log_C5]
+  - [is_hit_10pct, log_C10]
+  # normalized_citation ↔ ALL citation variants
+  - [normalized_citation, citation_count]
+  - [normalized_citation, cited_by_count]
+  - [normalized_citation, log_citation_count]
+  - [normalized_citation, log_cited_by_count]
+  - [normalized_citation, log_C3]
+  - [normalized_citation, log_C5]
+  - [normalized_citation, log_C10]
+  # citation_velocity ↔ log citation variants
+  - [citation_velocity, log_citation_count]
+  - [citation_velocity, log_cited_by_count]
+  - [citation_velocity, log_C3]
+  - [citation_velocity, log_C5]
+  - [citation_velocity, log_C10]
+  # log_C3/C5/C10 ↔ log_cited_by_count (all measure citation impact)
+  - [log_C3, log_cited_by_count]
+  - [log_C5, log_cited_by_count]
+  - [log_C10, log_cited_by_count]
+  # is_international is derived from num_countries (is_international = num_countries > 1)
+  - [is_international, num_countries]
+  # Sleeping beauty within-module pairs (WSB_mu, WSB_sigma, WSB_Cinf, SB_B, SB_T measure same construct)
+  - [WSB_mu, SB_T]
+  - [WSB_Cinf, SB_T]
+  - [WSB_mu, WSB_Cinf]
+  - [WSB_sigma, SB_T]
+  - [SB_B, SB_T]
+  - [WSB_Cinf, SB_B]
+  - [WSB_mu, SB_B]
+  - [WSB_mu, WSB_sigma]
+  - [WSB_sigma, WSB_Cinf]
+  - [WSB_sigma, SB_B]
+  # Hit flags ↔ raw citation windows
+  - [is_hit_1pct, C3]
+  - [is_hit_1pct, C5]
+  - [is_hit_1pct, C10]
+  - [is_hit_5pct, C3]
+  - [is_hit_5pct, C5]
+  - [is_hit_5pct, C10]
+  - [is_hit_10pct, C3]
+  - [is_hit_10pct, C5]
+  - [is_hit_10pct, C10]
+  # Open Access within-module pairs
+  - [is_oa, source_is_oa]
+  - [is_oa, has_license]
+  - [source_is_oa, has_license]
+  # Nobel: binary derived from count
+  - [has_nobel_connection, nobel_connection_count]
+  # Level-1 hit flags (nested: 1% ⊂ 5% ⊂ 10%)
+  - [is_hit_1pct_l1, is_hit_5pct_l1]
+  - [is_hit_1pct_l1, is_hit_10pct_l1]
+  - [is_hit_5pct_l1, is_hit_10pct_l1]
+  # Level-1 normalized_citation ↔ level-1 hit flags
+  - [normalized_citation_l1, is_hit_1pct_l1]
+  - [normalized_citation_l1, is_hit_5pct_l1]
+  - [normalized_citation_l1, is_hit_10pct_l1]
+  # Level-0 ↔ Level-1 equivalence (same construct, different granularity)
+  - [normalized_citation, normalized_citation_l1]
+  - [is_hit_1pct, is_hit_1pct_l1]
+  - [is_hit_5pct, is_hit_5pct_l1]
+  - [is_hit_10pct, is_hit_10pct_l1]
+  # Level-1 hit flags ↔ log citation variants
+  - [is_hit_1pct_l1, log_citation_count]
+  - [is_hit_1pct_l1, log_cited_by_count]
+  - [is_hit_1pct_l1, log_C3]
+  - [is_hit_1pct_l1, log_C5]
+  - [is_hit_1pct_l1, log_C10]
+  - [is_hit_5pct_l1, log_citation_count]
+  - [is_hit_5pct_l1, log_cited_by_count]
+  - [is_hit_5pct_l1, log_C3]
+  - [is_hit_5pct_l1, log_C5]
+  - [is_hit_5pct_l1, log_C10]
+  - [is_hit_10pct_l1, log_citation_count]
+  - [is_hit_10pct_l1, log_cited_by_count]
+  - [is_hit_10pct_l1, log_C3]
+  - [is_hit_10pct_l1, log_C5]
+  - [is_hit_10pct_l1, log_C10]
+  # normalized_citation_l1 ↔ raw/log citation variants
+  - [normalized_citation_l1, citation_count]
+  - [normalized_citation_l1, cited_by_count]
+  - [normalized_citation_l1, log_citation_count]
+  - [normalized_citation_l1, log_cited_by_count]
+  - [normalized_citation_l1, log_C3]
+  - [normalized_citation_l1, log_C5]
+  - [normalized_citation_l1, log_C10]
+  - [normalized_citation_l1, citation_velocity]
+  # Reference age within-module pairs
+  - [mean_ref_age, median_ref_age]
+  - [ref_age_std, ref_age_range]
+  - [pct_recent_refs_5yr, pct_old_refs_20yr]
+  # Institution type: sub-indicators of num_affil_types
+  - [has_industry_collab, num_affil_types]
+  - [has_healthcare_collab, num_affil_types]
+  # Text & presentation within-module pairs
+  - [title_word_count, title_char_count]
+  - [abstract_word_count, has_abstract]
+  - [is_english, has_abstract]
+
+# --- Missing codes ---
+# SciSciNet uses NaN for missing values, no special codes
+missing_codes: []
+
+# --- Column labels ---
+column_labels:
+  paperid: "paper identifier"
+  year: "publication year"
+  decade: "publication decade"
+  doctype: "document type"
+  primary_field_name: "primary academic field"
+  paper_age: "paper age (years since publication)"
+  citation_count: "total citations"
+  cited_by_count: "number of citing papers"
+  reference_count: "bibliography size"
+  C3: "3-year citations"
+  C5: "5-year citations"
+  C10: "10-year citations"
+  log_citation_count: "log total citations"
+  log_cited_by_count: "log citing papers"
+  log_C3: "log 3-year citations"
+  log_C5: "log 5-year citations"
+  log_C10: "log 10-year citations"
+  normalized_citation: "field-normalized citation score"
+  citation_velocity: "citations per year"
+  is_hit_1pct: "top 1% cited"
+  is_hit_5pct: "top 5% cited"
+  is_hit_10pct: "top 10% cited"
+  disruption: "disruption index (CD)"
+  Atyp_Median_Z: "atypicality median z-score"
+  Atyp_10pct_Z: "atypicality 10th pct z-score"
+  Atyp_Pairs: "atypicality pair count"
+  WSB_mu: "sleeping beauty awakening time"
+  WSB_sigma: "sleeping beauty burst width"
+  WSB_Cinf: "sleeping beauty citation ceiling"
+  SB_B: "sleeping beauty B index"
+  SB_T: "sleeping beauty awakening year"
+  team_size: "team size"
+  team_size_derived: "team size (derived)"
+  num_authors: "number of authors"
+  is_solo_author: "solo author flag"
+  institution_count: "institution count"
+  num_institutions: "number of institutions"
+  num_countries: "number of countries"
+  is_international: "international collaboration"
+  primary_country: "primary country"
+  first_author_hindex: "first author h-index"
+  first_author_productivity: "first author productivity"
+  first_author_avg_c10: "first author avg 10yr citations"
+  first_author_gender_prob_female: "first author P(female)"
+  last_author_hindex: "last author h-index"
+  last_author_productivity: "last author productivity"
+  last_author_avg_c10: "last author avg 10yr citations"
+  last_author_gender_prob_female: "last author P(female)"
+  patent_count: "patent citations"
+  newsfeed_count: "news mentions"
+  nct_count: "clinical trial links"
+  nih_count: "NIH funding links"
+  nsf_count: "NSF funding links"
+  has_patent: "has patent citation"
+  has_news: "has news mention"
+  has_clinical_trial: "has clinical trial link"
+  has_nih_funding: "has NIH funding"
+  has_nsf_funding: "has NSF funding"
+  num_fields: "number of fields"
+  num_level0_fields: "number of top-level fields"
+  primary_field_score: "primary field confidence"
+  is_retracted: "retracted paper"
+  is_oa: "open access paper"
+  source_is_oa: "open access journal"
+  has_license: "has open license"
+  has_nobel_connection: "Nobel laureate connection"
+  nobel_connection_count: "Nobel connection count"
+  has_pmid: "indexed in PubMed"
+  mean_ref_age: "mean reference age"
+  median_ref_age: "median reference age"
+  ref_age_std: "reference age std. dev."
+  ref_age_range: "reference age range"
+  pct_recent_refs_5yr: "fraction recent refs (5yr)"
+  pct_old_refs_20yr: "fraction old refs (20yr+)"
+  normalized_citation_l1: "subfield-normalized citation score"
+  is_hit_1pct_l1: "top 1% cited (subfield)"
+  is_hit_5pct_l1: "top 5% cited (subfield)"
+  is_hit_10pct_l1: "top 10% cited (subfield)"
+  has_industry_collab: "industry collaboration"
+  has_healthcare_collab: "healthcare institution involved"
+  num_affil_types: "number of affiliation types"
+  has_abstract: "has abstract"
+  abstract_word_count: "abstract word count"
+  title_word_count: "title word count"
+  title_char_count: "title character count"
+  title_has_question: "title contains question"
+  title_has_colon: "title contains colon"
+  is_english: "English-language paper"
+
+# --- Demographic synonyms ---
+# SciSciNet has no demographic survey synonyms
+demographic_synonyms: {}
+
+# --- Sign semantics ---
+# Direction metadata for columns with non-obvious or important scale semantics.
+# Used by DSL executor for interpretation flags and by critic for audit context.
+sign_semantics:
+  disruption:
+    direction: "bipolar"
+    meaning: "Ranges from -1 (consolidating: citing papers also cite this paper's references) to +1 (disruptive: citing papers ignore this paper's references). Zero is neutral."
+  Atyp_Median_Z:
+    direction: "higher_is_more_positive"
+    meaning: "Higher values indicate more atypical/novel combinations of cited journals relative to random expectation."
+  Atyp_10pct_Z:
+    direction: "higher_is_more_negative"
+    meaning: "Lower values indicate the paper has at least one very conventional journal pair grounding its references. High novelty papers often have LOW Atyp_10pct_Z (conventional anchor) paired with HIGH Atyp_Median_Z (overall novelty)."
+  normalized_citation:
+    direction: "higher_is_more_positive"
+    meaning: "Field-and-year normalized citation score. 1.0 = average for field and year; >1 means above average; <1 below average."
+  citation_velocity:
+    direction: "higher_is_more_positive"
+    meaning: "Higher values indicate faster citation accumulation per year."
+  WSB_mu:
+    direction: "higher_is_more_negative"
+    meaning: "Higher mu indicates longer dormancy before the citation burst (later awakening). A sleeping beauty has high mu."
+  WSB_sigma:
+    direction: "neutral"
+    meaning: "Width of the citation burst. Larger sigma means a more spread-out (less sharp) burst of attention."
+  SB_B:
+    direction: "higher_is_more_positive"
+    meaning: "Higher B indicates a more pronounced sleeping beauty pattern (stronger delayed recognition)."
+  first_author_gender_prob_female:
+    direction: "probability"
+    meaning: "Probability that the first author is female, inferred from name. 0 = likely male, 1 = likely female. NaN when inference is not possible (e.g., initials only)."
+  last_author_gender_prob_female:
+    direction: "probability"
+    meaning: "Probability that the last author is female, inferred from name. 0 = likely male, 1 = likely female."
+  primary_field_score:
+    direction: "higher_is_more_positive"
+    meaning: "OpenAlex confidence score for the primary field classification. Higher = more confident assignment."
+  mean_ref_age:
+    direction: "higher_is_more_positive"
+    meaning: "Higher values indicate the paper draws on older, potentially more foundational literature."
+  pct_recent_refs_5yr:
+    direction: "higher_is_more_positive"
+    meaning: "Higher values indicate a more current bibliography, drawing heavily on recent work."
+  pct_old_refs_20yr:
+    direction: "higher_is_more_positive"
+    meaning: "Higher values indicate the paper draws heavily on classic, foundational work (20+ years old)."
+  normalized_citation_l1:
+    direction: "higher_is_more_positive"
+    meaning: "Subfield-and-year normalized citation score. 1.0 = average for subfield and year; >1 means above average."
+
+# --- Prompt hints ---
+prompt_hints:
+  - "SciSciNet variables are scientometric measures. Prefer log-transformed citation variables (log_citation_count, log_C5, etc.) over raw counts for assoc() and interact()."
+  - "paperid is a unique identifier; never use it as a numeric predictor or outcome."
+  - "No survey weights exist in this dataset."
+  - "doctype and primary_field_name are categorical; use them as grouping variables (by=..., |...) not as numeric predictors."
+  - "New features: Open Access (is_oa, source_is_oa), Reference Age Profile (mean_ref_age, pct_recent_refs_5yr), institution type (has_industry_collab), Nobel connections, PubMed indicator, and subfield-level citations (normalized_citation_l1). These enable new cross-module research questions."
+  - "has_nobel_connection is extremely sparse (~0.04% of papers). Use it as a grouping variable or moderator, not as a predictor in regression."
+
+# --- Phase 1 persona and wording ---
+phase1_persona: "You are a Science of Science researcher proposing a research idea for a large-scale bibliometric dataset covering millions of academic papers."
+phase1_wording_hint: "Use scientometric terminology (citation impact, disruption, atypicality, team size, interdisciplinarity, delayed recognition, h-index, knowledge recombination, sleeping beauty)."
+
+# --- DSL rules for Phase 2 prompt ---
+dsl_rules:
+  - "This dataset has NO missing codes — all missing values are NaN, handled automatically."
+  - "There are NO survey weights. Do NOT include a weights=... clause."
+  - "paperid is a technical identifier — do NOT use it as predictor, outcome, or control."
+  - "Categorical columns (doctype, primary_field_name, primary_country) may be used for grouping (by=..., |...) but NOT as numeric predictors in assoc()."
+  - "CROSS-MODULE: X and Y MUST come from different thematic modules (e.g., Citation Impact vs Team Composition, or Novelty/Disruption vs Author Metrics). This is where surprising discoveries happen."
+  - "When testing citation variables as outcomes, prefer log-transformed versions (log_citation_count, log_C5, log_C10) for better distributional properties."
+  - "COMPLEX EFFECTS: At least 3 hypotheses MUST use interact() or heterogeneity() — these test WHEN and FOR WHOM effects hold."
+  - "SURPRISE: At least 2 hypotheses should test a relationship most scientists would NOT expect."
+  - "MODULE NAMES ARE NOT COLUMNS. These are concept menu labels, NOT column names: 'real_world_impact', 'citation_impact', 'field_and_interdisciplinarity', 'team_composition', 'author_metrics', 'sleeping_beauty', 'funding_sources'. Use exact column names from the schema."
+  - "COLUMN NAME ACCURACY: Use exact column names. Common mistakes: 'disruption_index' should be 'disruption', 'SB_mu' or 'SB_Cinf' should be 'WSB_mu' or 'WSB_Cinf', 'WSB_B' should be 'SB_B', 'publication_year' should be 'year'. Do NOT invent columns."
+  - "LOG VARIANTS: Only these log-transformed columns exist: log_citation_count, log_cited_by_count, log_C3, log_C5, log_C10. Do NOT invent others (log_normalized_citation, log_WSBCinf, log_paper_age, log_num_level0_fields, log_citation_velocity do NOT exist)."
+  - "GROUPING AND MODERATOR VARIABLES: For diff(by=...), heterogeneity(...|G), and interact(X*Z->Y) moderator Z — the grouping/moderator variable MUST be categorical or binary. Valid choices: doctype, primary_field_name, primary_country, is_international, is_solo_author, is_hit_1pct, is_hit_5pct, is_hit_10pct, is_hit_1pct_l1, is_hit_5pct_l1, is_hit_10pct_l1, has_patent, has_news, has_clinical_trial, has_nih_funding, has_nsf_funding, is_retracted, is_oa, source_is_oa, has_license, has_nobel_connection, has_pmid, has_industry_collab, has_healthcare_collab, has_abstract, title_has_question, title_has_colon, is_english. Do NOT use continuous variables as grouping/moderator: year, paper_age, primary_field_score, disruption, citation_velocity, normalized_citation, normalized_citation_l1, any h-index, any _avg_c10, any _productivity, any _gender_prob_female, any WSB/SB metric, any Atyp metric, any count variable, mean_ref_age, median_ref_age, ref_age_std, ref_age_range, pct_recent_refs_5yr, pct_old_refs_20yr, nobel_connection_count, num_affil_types, abstract_word_count, title_word_count, title_char_count."
+  - "CITATION OUTCOME DIVERSITY: Do NOT test the same predictor against multiple citation metrics. If you test X → log_C10, do NOT also test X → log_C5, X → log_citation_count, X → citation_velocity, X → normalized_citation, X → normalized_citation_l1, or X → is_hit_*pct / is_hit_*pct_l1 in the same batch. Pick ONE citation outcome per predictor. Vary the PREDICTOR across hypotheses, not the citation metric."
+  - "REFERENCE AGE: mean_ref_age, median_ref_age, ref_age_std, ref_age_range, pct_recent_refs_5yr, pct_old_refs_20yr may be NULL for papers with zero references. This is NOT missing data — it means the feature is inapplicable. Do NOT impute zeros."
+
+# --- Theme keywords for secondary theme inference ---
+theme_keywords:
+  "Citation Impact":
+    - "citation"
+    - "cited"
+    - "impact"
+    - "bibliometric"
+    - "h-index"
+    - "highly cited"
+  "Novelty and Disruption":
+    - "novelty"
+    - "disruption"
+    - "atypical"
+    - "breakthrough"
+    - "unconventional"
+    - "recombination"
+  "Sleeping Beauty":
+    - "sleeping beauty"
+    - "delayed recognition"
+    - "late citation"
+    - "dormant"
+    - "awakening"
+  "Team Composition":
+    - "team"
+    - "collaboration"
+    - "coauthor"
+    - "international"
+    - "institution"
+    - "solo author"
+  "Author Metrics":
+    - "author"
+    - "career"
+    - "productivity"
+    - "gender"
+    - "seniority"
+    - "junior"
+    - "senior"
+  "Real-World Impact":
+    - "patent"
+    - "clinical trial"
+    - "policy"
+    - "news"
+    - "translational"
+    - "societal"
+    - "Nobel"
+    - "laureate"
+    - "PubMed"
+    - "biomedical"
+  "Field and Interdisciplinarity":
+    - "interdisciplin"
+    - "field"
+    - "cross-field"
+    - "multidisciplin"
+    - "disciplinary"
+  "Document Type and Temporal":
+    - "temporal"
+    - "trend"
+    - "decade"
+    - "document type"
+    - "preprint"
+    - "review article"
+  "Open Access and Publishing":
+    - "open access"
+    - "OA"
+    - "license"
+    - "publishing"
+    - "journal access"
+    - "paywall"
+    - "gold OA"
+    - "green OA"
+  "Reference Age Profile":
+    - "reference age"
+    - "bibliography"
+    - "recency"
+    - "foundational"
+    - "classic literature"
+    - "knowledge base"
+    - "temporal diversity"
+  "Text and Presentation":
+    - "title"
+    - "abstract"
+    - "word count"
+    - "question mark"
+    - "subtitle"
+    - "brevity"
+    - "framing"
+    - "readability"
+    - "language"
+    - "English"
+
+# --- Concept menu (matches VariableCard.module values) ---
+concept_menu:
+  - "Citation Impact (citation_count, C3, C5, C10, normalized_citation, hit papers, normalized_citation_l1)"
+  - "Novelty and Disruption (disruption index, atypicality, Atyp_Median_Z)"
+  - "Sleeping Beauty (WSB_mu, SB_B, delayed recognition)"
+  - "Team Composition (team_size, num_authors, num_institutions, num_countries, is_international, has_industry_collab, num_affil_types)"
+  - "Author Metrics (first/last author h-index, productivity, avg_c10, gender probability)"
+  - "Real-World Impact (patent_count, newsfeed_count, nct_count, nih_count, nsf_count, has_pmid, has_nobel_connection)"
+  - "Field and Interdisciplinarity (primary_field_name, num_fields, num_level0_fields)"
+  - "Document Type and Temporal (doctype, year, decade, paper_age)"
+  - "Open Access and Publishing (is_oa, source_is_oa, has_license)"
+  - "Reference Age Profile (mean_ref_age, median_ref_age, pct_recent_refs_5yr, pct_old_refs_20yr)"
+  - "Text and Presentation (has_abstract, abstract_word_count, title_word_count, title_has_question, title_has_colon, is_english)"
+
+always_keep:
+  - "paperid"
+  - "year"
+  - "primary_field_name"
+  - "doctype"

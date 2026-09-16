@@ -1,0 +1,281 @@
+# Dataset profile: Amazon Books (Review 2018, 5-core + product metadata)
+
+name: "amazon_books"
+domain_description: >-
+  Amazon Books product reviews. The dataset contains review-level fields
+  (rating, helpful_votes, verified_purchase, review text) joined with
+  product metadata (title, brand/publisher, price, category, sales rank,
+  also-bought/viewed counts). Discovery should focus on non-obvious
+  relationships between reviewer behavior, product characteristics,
+  and review content.
+
+# --- Flow control ---
+use_two_phase: true
+use_dsl: true
+catalog_path: "./data/processed/amazon_books/amazon_books_variable_catalog.jsonl"
+# Small schema, so retrieval is uncapped.
+max_retrieved_variables: 0
+
+# --- Goals ---
+goals:
+  primary: >-
+    Discover factors that drive review helpfulness, rating patterns,
+    and product success in Amazon book reviews. Explore interactions
+    between reviewer behavior, product characteristics, and review content.
+  secondary:
+    - "review helpfulness drivers"
+    - "rating patterns across product types"
+    - "reviewer credibility and engagement"
+
+# --- Data ---
+data_path: "./data/amazon_books_autokd.csv"
+memory_path: "./data/memory_amazon_books/insight_graph.json"
+
+weight_columns: []
+
+control_only_columns:
+  - "timestamp"
+  - "date"
+
+id_columns:
+  - "asin"
+  - "reviewerID"
+
+text_columns:
+  - "review_text"
+  - "summary"
+  - "product_title"
+  - "product_brand"
+
+known_categorical: []
+
+# --- Columns to exclude from schema entirely (zero variance or redundant) ---
+drop_columns:
+  - "product_main_category"  # only 1 level ("Books") in the filtered sample — zero information
+  - "review_length"          # r=0.997 with review_word_count — redundant
+  - "review_sentence_count"  # r=0.937 with review_word_count — redundant
+  - "review_avg_word_length" # partial r=0.026 with helpful_votes|word_count — negligible unique info
+  - "review_uppercase_ratio" # partial r=-0.004 — formatting noise
+  - "review_exclamation_count"  # partial r=0.004 — near-zero unique signal
+  - "review_question_count"  # partial r=0.010 — redundant with review_has_question
+  - "review_has_exclamation" # partial r=0.010 — near-zero unique signal
+  - "summary_length"         # r=0.957 with summary_word_count — redundant
+
+# --- Columns that must NEVER appear in by= or | grouping position ---
+# High-cardinality continuous columns that crash diff()/heterogeneity()
+grouping_excluded:
+  - "product_sales_rank"     # 112K unique — continuous, not a group
+  - "product_sub_category"   # 552 unique — too many levels for group tests
+  - "product_brand"          # 64K unique — too many levels for group tests
+  - "reviewer_review_count"  # 1K+ unique — continuous count, not a group
+  - "helpful_votes"          # 269 unique — continuous count, not a group
+  - "product_review_count"   # continuous count
+  - "review_word_count"      # continuous
+  - "product_price"          # continuous
+
+nlp_features: []
+
+# --- Derived / tautological column pairs ---
+# Pairs of columns where one is mechanically derived from the other.
+# Hypotheses testing these pairs are rejected as tautological.
+derived_pairs:
+  # Remaining text features: word_count ↔ unique_word_ratio (r=-0.73)
+  - [review_word_count, review_unique_word_ratio]
+  # Cross-proxy: summary ↔ review length
+  - [summary_word_count, review_word_count]
+  # Rating ~ aggregated rating (near-tautological)
+  - [rating, reviewer_avg_rating]
+  - [rating, product_avg_rating]
+  - [reviewer_avg_rating, product_avg_rating]
+  # Same construct at different aggregation levels
+  - [reviewer_rating_std, product_rating_std]
+  - [reviewer_avg_rating, product_avg_rating]
+  - [reviewer_review_count, product_review_count]
+  # Also-bought ~ also-viewed (same popularity construct)
+  - [product_also_buy_count, product_also_view_count]
+  # Prolific reviewer ~ longer text (obvious)
+  - [reviewer_review_count, review_word_count]
+  - [reviewer_review_count, summary_word_count]
+
+# --- Missing codes ---
+missing_codes: []
+
+# --- Column labels ---
+column_labels:
+  asin: "product ID (ASIN)"
+  reviewerID: "reviewer ID"
+  rating: "star rating (1-5)"
+  helpful_votes: "helpful vote count"
+  verified_purchase: "verified purchase (0/1)"
+  has_image: "review includes image (0/1)"
+  product_format: "book format (Paperback, Kindle, Hardcover, ...)"
+  product_brand: "publisher or brand"
+  product_price: "listed price (USD)"
+  product_main_category: "top-level Amazon category"
+  product_sub_category: "most specific category"
+  product_sales_rank: "Amazon sales rank (lower = more popular)"
+  product_also_buy_count: "number of also-bought products"
+  product_also_view_count: "number of also-viewed products"
+  product_has_description: "product has description (0/1)"
+  year: "review year"
+  review_length: "review character length"
+  review_word_count: "review word count"
+  review_sentence_count: "review sentence count"
+  review_avg_word_length: "average word length (complexity)"
+  review_unique_word_ratio: "vocabulary richness (type-token ratio)"
+  review_exclamation_count: "exclamation mark count"
+  review_question_count: "question mark count"
+  review_uppercase_ratio: "uppercase character ratio"
+  summary_length: "summary character length"
+  summary_word_count: "summary word count"
+  review_has_exclamation: "has exclamation mark (0/1)"
+  review_has_question: "has question mark (0/1)"
+  reviewer_review_count: "number of reviews by this reviewer"
+  reviewer_avg_rating: "average rating given by this reviewer (1-5)"
+  reviewer_rating_std: "rating standard deviation for this reviewer"
+  product_review_count: "total reviews for this product"
+  product_avg_rating: "average rating for this product (1-5)"
+  product_rating_std: "rating standard deviation for this product"
+
+# --- Demographic synonyms ---
+demographic_synonyms: {}
+
+# --- Sign semantics ---
+sign_semantics:
+  rating:
+    direction: "higher_is_more_positive"
+    meaning: "Higher ratings (1-5) indicate more favorable reviews."
+  helpful_votes:
+    direction: "higher_is_more_positive"
+    meaning: "More helpful votes indicate greater perceived usefulness."
+  product_sales_rank:
+    direction: "inverse"
+    meaning: "Lower rank = more popular. Rank 1 is the best-selling book."
+  product_also_buy_count:
+    direction: "higher_is_more_positive"
+    meaning: "Higher count indicates stronger cross-selling appeal."
+  product_also_view_count:
+    direction: "higher_is_more_positive"
+    meaning: "Higher count indicates broader browsing interest."
+  reviewer_review_count:
+    direction: "higher_is_more_active"
+    meaning: "Higher count indicates more prolific reviewers with more experience."
+  reviewer_avg_rating:
+    direction: "higher_is_more_positive"
+    meaning: "Higher average indicates reviewers who tend to give favorable ratings (lenient)."
+  reviewer_rating_std:
+    direction: "higher_is_more_variable"
+    meaning: "Higher std indicates less consistent reviewers; 0 means always same rating."
+  product_review_count:
+    direction: "higher_is_more_popular"
+    meaning: "Higher count indicates products receiving more review attention."
+  product_avg_rating:
+    direction: "higher_is_more_positive"
+    meaning: "Higher average indicates better-received products."
+  product_rating_std:
+    direction: "higher_is_more_controversial"
+    meaning: "Higher std indicates more polarized opinions; 0 means unanimous rating."
+
+# --- Phase 1 persona and wording ---
+phase1_persona: >-
+  You are a book industry analyst proposing a research question about factors
+  driving review helpfulness, rating patterns, and product success in Amazon
+  book reviews.
+phase1_wording_hint: >-
+  Use e-commerce and book review terminology (helpfulness drivers, review
+  engagement, product popularity, book format, verified purchase credibility,
+  sales rank influence, also-bought networks, cross-selling patterns).
+
+# --- DSL rules for Phase 2 prompt ---
+dsl_rules:
+  - "This dataset has NO missing codes and NO survey weights."
+  - "ID columns (asin, reviewerID) may be used for grouping (by=..., |...) but NOT as numeric predictors/outcomes in assoc()."
+  - "Raw text columns (review_text, summary, product_title) CANNOT be used in DSL hypotheses. Use the precomputed text features instead (review_length, review_word_count, review_uppercase_ratio, etc.)."
+  - "product_main_category CANNOT be used — it has only one value ('Books') and carries zero information."
+  - "product_sales_rank is INVERSE and CONTINUOUS (112K unique values). Use it ONLY in assoc() as X or Y, NEVER in by= or | grouping."
+  - "product_sub_category has 500+ categories — too many for diff(by=) or heterogeneity(|). Use ONLY product_format (69 categories) or verified_purchase/has_image (binary) for grouping."
+  - "product_brand has 64K unique values — NEVER use it for grouping. It cannot appear in by= or | positions."
+  - "GROUPING RULE: For diff(Y, by=G) and heterogeneity(Y ~ X | G), G must be a LOW-cardinality column: verified_purchase, has_image, has_question, has_exclamation, product_has_description, or product_format."
+  - "product_format is the ONLY categorical suitable for multi-group comparisons (Paperback vs Kindle vs Hardcover etc.)."
+  - "CROSS-MODULE: X and Y MUST come from different thematic modules (e.g., Rating/Helpfulness vs Product Popularity, not both from the same module)."
+  - "COMPLEX EFFECTS: At least 2 hypotheses MUST use interact() or heterogeneity() — test WHEN and FOR WHOM effects hold."
+  - "SURPRISE: At least 1 hypothesis should test a relationship most analysts would NOT expect."
+
+# --- Theme keywords for secondary theme inference ---
+theme_keywords:
+  "Rating and Helpfulness":
+    - "rating"
+    - "star"
+    - "helpful"
+    - "vote"
+    - "verified"
+    - "purchase"
+    - "credibility"
+  "Product Attributes":
+    - "price"
+    - "format"
+    - "publisher"
+    - "brand"
+    - "description"
+    - "paperback"
+    - "kindle"
+    - "hardcover"
+  "Product Popularity":
+    - "sales rank"
+    - "popular"
+    - "bestseller"
+    - "also bought"
+    - "also viewed"
+    - "cross-selling"
+  "Product Classification":
+    - "category"
+    - "genre"
+    - "classification"
+    - "taxonomy"
+  "Reviewer Behavior":
+    - "reviewer"
+    - "prolific"
+    - "experience"
+    - "credibility"
+    - "leniency"
+    - "consistency"
+    - "active"
+  "Product Reception":
+    - "consensus"
+    - "controversy"
+    - "polarized"
+    - "disagreement"
+    - "average rating"
+    - "review volume"
+    - "well-received"
+  "Review Text Features":
+    - "length"
+    - "word count"
+    - "vocabulary"
+    - "exclamation"
+    - "question"
+    - "uppercase"
+    - "writing style"
+    - "complexity"
+
+# --- Prompt hints ---
+prompt_hints:
+  - "This is a book reviews dataset. Do not reference electronics, clothing, or other non-book product categories."
+  - "product_sales_rank is inverse: lower rank = more popular book."
+  - "product_also_buy_count and product_also_view_count measure cross-selling popularity."
+  - "product_format distinguishes physical books (Hardcover, Paperback) from digital (Kindle Edition, Audible)."
+  - "ID columns (asin, reviewerID) should only be used for grouping/aggregation, not as numeric magnitudes."
+
+# --- Concept menu ---
+concept_menu:
+  - "Rating and Helpfulness (rating, helpful_votes, verified_purchase, has_image)"
+  - "Product Attributes (product_price, product_format, product_brand, product_has_description)"
+  - "Product Popularity (product_sales_rank, product_also_buy_count, product_also_view_count)"
+  - "Product Classification (product_sub_category)"
+  - "Reviewer Behavior (reviewer_review_count, reviewer_avg_rating, reviewer_rating_std)"
+  - "Product Reception (product_review_count, product_avg_rating, product_rating_std)"
+  - "Review Text Features (review_word_count, review_unique_word_ratio, review_has_question, summary_word_count)"
+
+always_keep:
+  - "asin"
+  - "year"

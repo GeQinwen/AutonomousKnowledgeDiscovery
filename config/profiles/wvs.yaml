@@ -1,0 +1,312 @@
+# Dataset profile: World Values Survey (Wave 7)
+
+name: "wvs"
+domain_description: "Cross-national public opinion survey (World Values Survey)"
+
+# --- Flow control ---
+use_two_phase: true
+use_dsl: true
+catalog_path: "./data/processed/wvs/wvs7_variable_catalog.jsonl"
+
+# --- Goals ---
+goals:
+  primary: "Understand relationships between trust, well-being, and political attitudes across countries"
+  secondary:
+    - "social capital and institutional trust"
+    - "value change and postmaterialism"
+    - "cross-national differences in political culture"
+
+# --- Data ---
+data_path: "./data/wvs7_autokd.csv"
+memory_path: "./data/memory_wvs/insight_graph.json"
+
+weight_columns:
+  - "sampling_weight"
+  - "W_WEIGHT"
+  - "PWGHT"
+
+control_only_columns:
+  - "FW_START"
+  - "FW_END"
+  - "A_YEAR"
+
+id_columns:
+  - "survey_id"
+  - "B_COUNTRY"
+  - "B_COUNTRY_ALPHA"
+
+text_columns: []
+
+known_categorical:
+  - "B_COUNTRY"
+  - "B_COUNTRY_ALPHA"
+  - "H_URBRURAL"
+  - "country"
+  - "country_code"
+
+nlp_features: []
+
+# --- Missing codes ---
+# WVS uses negative codes for missing/not-asked/refused
+missing_codes: [-1, -2, -3, -4, -5]
+
+# --- Derived / tautological column pairs ---
+# Pairs of columns where one is mechanically derived from the other.
+# Hypotheses testing these pairs are rejected as tautological.  This
+# blocks trivial findings like "Age differs across groups defined by
+# Age recoded (3 intervals)" from consuming slots in the insight graph.
+derived_pairs:
+  # Age: Q262 is the raw value; X003R is age-recoded-6-intervals;
+  # X003R2 is age-recoded-3-intervals.  All three measure the same
+  # underlying age variable.
+  - [Q262, X003R]
+  - [Q262, X003R2]
+  - [X003R, X003R2]
+  # Education: Q275 is ISCED 0-8; Q275R is recoded-to-3-groups.
+  - [Q275, Q275R]
+
+# --- Column labels (human-friendly names for evaluator rendering) ---
+column_labels:
+  B_COUNTRY: "country"
+  B_COUNTRY_ALPHA: "country"
+  A_YEAR: "survey year"
+  year: "survey year"
+  H_URBRURAL: "urban vs rural residence"
+  FW_START: "fieldwork start date"
+  FW_END: "fieldwork end date"
+  survey_id: "survey (wave) id"
+  sampling_weight: "survey weights"
+  PWGHT: "survey weights"
+  W_WEIGHT: "survey weights"
+
+# --- Demographic synonyms (natural language -> column name) ---
+demographic_synonyms:
+  gender: "Q260"
+  sex: "Q260"
+  age: "Q262"
+  "age group": "Q262"
+  "age_group": "Q262"
+  education: "Q275"
+  "education level": "Q275"
+  "education_level": "Q275"
+  "educational level": "Q275"
+  "highest education": "Q275"
+  employment: "Q279"
+  "employment status": "Q279"
+  "employment_status": "Q279"
+  income: "Q288"
+  "income level": "Q288"
+  "income_level": "Q288"
+  "income category": "Q288"
+  "income_category": "Q288"
+  "income status": "Q288"
+  "income_status": "Q288"
+  "income bracket": "Q288"
+  "household income": "Q288"
+  "scale of incomes": "Q288"
+  "marital status": "Q273"
+  "marital_status": "Q273"
+  "number of children": "Q274"
+  children: "Q274"
+  "social class": "Q287"
+  religion: "Q289"
+  "religious denomination": "Q289"
+  "religious affiliation": "Q289"
+  "religious_affiliation": "Q289"
+  "ethnic group": "Q290"
+  ethnicity: "Q290"
+  "urban rural": "H_URBRURAL"
+  "urban-rural": "H_URBRURAL"
+  urbanicity: "H_URBRURAL"
+  "urban_rural": "H_URBRURAL"
+  "urban_rural_residence": "H_URBRURAL"
+  "urban vs rural residence": "H_URBRURAL"
+  "urban vs. rural setting": "H_URBRURAL"
+  country: "B_COUNTRY"
+  year: "A_YEAR"
+  "survey year": "A_YEAR"
+
+# --- Sign semantics (how to interpret variable direction) ---
+sign_semantics:
+  Q46:
+    direction: "higher_is_more_negative"
+    meaning: "Larger values mean less happiness."
+  Q49:
+    direction: "higher_is_more_positive"
+    meaning: "Larger values mean greater life satisfaction."
+  Q50:
+    direction: "higher_is_more_positive"
+    meaning: "Larger values mean greater financial satisfaction."
+  Q58:
+    direction: "higher_is_more_negative"
+    meaning: "Larger values mean less trust."
+  Q62:
+    direction: "higher_is_more_negative"
+    meaning: "Larger values mean less trust."
+  Q71:
+    direction: "higher_is_more_negative"
+    meaning: "Larger values mean less confidence."
+  B_COUNTRY:
+    direction: "coded"
+    meaning: "ISO numeric country code. Not a magnitude."
+  B_COUNTRY_ALPHA:
+    direction: "coded"
+    meaning: "ISO alpha country code. Not a magnitude."
+  A_YEAR:
+    direction: "coded"
+    meaning: "Calendar year of the survey wave."
+  sampling_weight:
+    direction: "weight"
+    meaning: "Survey sampling weight."
+  PWGHT:
+    direction: "weight"
+    meaning: "Post-stratification weight."
+  W_WEIGHT:
+    direction: "weight"
+    meaning: "Design weight."
+
+# --- Phase 1 persona and wording ---
+phase1_persona: "You are a social scientist proposing a research idea for a cross-national survey dataset (e.g., World Values Survey)."
+phase1_wording_hint: "Use codebook-like wording (confidence in..., satisfaction with..., justifiable..., trust in..., identity, belonging, corruption, inequality)."
+
+# --- DSL rules for Phase 2 prompt ---
+dsl_rules:
+  - "WVS rule: assume negative/special codes (e.g., -1/-2/-4/-5) are recoded to missing before analysis."
+  - "Weight columns (e.g., sampling_weight, PWGHT, W_WEIGHT) may be used only as statistical weights, NOT as main predictors/outcomes."
+  - "Country/ID columns (e.g., B_COUNTRY, survey_id) may be used for stratification/grouping (by=..., | ...) or fixed effects, NOT as numeric predictors/outcomes in assoc()."
+  - "survey_id is a technical identifier; do NOT use it as predictor, outcome, or control."
+  - "SAME-BATTERY RULE: Do NOT test assoc() between variables from the same questionnaire section (adjacent Q-numbers like Q113 and Q114). Their correlation is trivially high by survey design."
+  - "COUNTRY-DIFF RULE: diff(Y, by=B_COUNTRY) MUST include at least one substantive (non-demographic) Q-variable as a control."
+  - "Do NOT put weight columns in 'controlling for'; if a weight is needed, add weights=<weight_column> at the end."
+  - "CROSS-MODULE: X and Y MUST come from different WVS questionnaire sections. Connecting distant themes is far more valuable than testing within-section patterns."
+  - "Simple associations (assoc, diff) are encouraged — they build the knowledge foundation. Use interact() or heterogeneity() only when you have a clear theoretical reason for a moderator."
+
+# --- Theme keywords for secondary theme inference ---
+theme_keywords:
+  "Social values":
+    - "norm"
+    - "stereotype"
+    - "gender role"
+    - "tolerance"
+    - "justifiable"
+    - "moral"
+  "Happiness and wellbeing":
+    - "well-being"
+    - "wellbeing"
+    - "happiness"
+    - "life satisfaction"
+    - "satisfaction with life"
+    - "subjective well"
+  "Social capital":
+    - "trust"
+    - "social capital"
+    - "civic"
+    - "community"
+    - "organizational membership"
+    - "volunteer"
+  "Economic values":
+    - "economic"
+    - "inequality"
+    - "income distribution"
+    - "competition"
+    - "private ownership"
+    - "wealth"
+  "Corruption":
+    - "corruption"
+    - "bribery"
+    - "nepotism"
+    - "transparency"
+  "Migration":
+    - "migration"
+    - "immigration"
+    - "immigrant"
+    - "refugee"
+    - "foreigner"
+    - "ethnic diversity"
+  "Security":
+    - "security"
+    - "terrorism"
+    - "crime"
+    - "violence"
+    - "war"
+    - "armed conflict"
+    - "safety"
+  "Postmaterialism":
+    - "postmaterial"
+    - "value change"
+    - "materialis"
+    - "inglehart"
+    - "self-expression"
+  "Science and technology":
+    - "science"
+    - "technology"
+    - "innovation"
+    - "artificial intelligence"
+    - "biotechnology"
+  "Religious values":
+    - "religio"
+    - "god"
+    - "prayer"
+    - "faith"
+    - "spiritual"
+    - "secular"
+    - "church"
+    - "mosque"
+  "Ethical values":
+    - "ethic"
+    - "moral"
+    - "justifiable"
+    - "abortion"
+    - "euthanasia"
+    - "homosexual"
+    - "divorce"
+    - "suicide"
+  "Political interest and participation":
+    - "political"
+    - "democracy"
+    - "election"
+    - "voting"
+    - "participation"
+    - "protest"
+    - "petition"
+  "Political culture and political regimes":
+    - "regime"
+    - "authoritarian"
+    - "autocra"
+    - "democratic system"
+    - "army rule"
+    - "government type"
+  "Demographics":
+    - "demographic"
+    - "education level"
+    - "employment"
+    - "socioeconomic"
+    - "age group"
+    - "marital status"
+
+# --- Prompt hints ---
+prompt_hints:
+  - "WVS-style survey variables are often ordinal/categorical codes. Prefer comparisons across groups, ordered relationships, or treat as categorical."
+  - "Consider adding country/year controls if available."
+  - "Negative codes (-1 to -5) are recoded to missing before analysis."
+
+# --- Two-phase / RAG settings ---
+concept_menu:
+  - "Social values, norms, stereotypes (Q1-Q45)"
+  - "Happiness and wellbeing (Q46-Q56)"
+  - "Social capital, trust, and organizational membership (Q57-Q105)"
+  - "Economic values (Q106-Q111)"
+  - "Perceptions of corruption (Q112-Q120)"
+  - "Perceptions of migration (Q121-Q130)"
+  - "Perceptions of security (Q131-Q151)"
+  - "Postmaterialism / value change (Q152-Q157)"
+  - "Science and technology perceptions (Q158-Q163)"
+  - "Religious values (Q164-Q175)"
+  - "Ethical values (Q176-Q198)"
+  - "Political interest and participation (Q199-Q234)"
+  - "Political culture and political regimes (Q235-Q259)"
+  - "Demographics and SES (Q260-Q290)"
+
+always_keep:
+  - "W_WEIGHT"
+  - "PWGHT"
